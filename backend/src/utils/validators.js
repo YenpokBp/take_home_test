@@ -3,7 +3,11 @@ const USERNAME_RE = /^[a-zA-Z0-9_]{3,30}$/;
 const PHONE_RE = /^[0-9]{8,15}$/;
 export const MAX_AMOUNT = 1_000_000_000;
 
-export function validateRegister({ username, email, phone, password } = {}) {
+export function validateRegister(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return [{ field: 'body', message: 'Request body harus berupa JSON object' }];
+  }
+  const { username, email, phone, password } = body;
   const errors = [];
 
   if (typeof username !== 'string' || !USERNAME_RE.test(username.trim()))
@@ -12,8 +16,9 @@ export function validateRegister({ username, email, phone, password } = {}) {
   if (typeof email !== 'string' || email.length > 255 || !EMAIL_RE.test(email.trim()))
     errors.push({ field: 'email', message: 'Format email tidak valid' });
 
-  if (phone !== undefined && phone !== null && phone !== '' &&
-      (typeof phone !== 'string' || !PHONE_RE.test(phone)))
+  const cleanPhone = typeof phone === 'string' ? phone.trim() : phone;
+  if (cleanPhone !== undefined && cleanPhone !== null && cleanPhone !== '' &&
+      (typeof cleanPhone !== 'string' || !PHONE_RE.test(cleanPhone)))
     errors.push({ field: 'phone', message: 'Nomor telepon 8-15 digit angka' });
 
   if (typeof password !== 'string' || password.length < 8)
