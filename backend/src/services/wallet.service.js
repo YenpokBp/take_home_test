@@ -9,7 +9,12 @@ export async function getBalance(userId) {
   return rows[0].balance;
 }
 
-export async function topUp(userId, { amount, note } = {}) {
+export async function topUp(userId, body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw new AppError(400, 'Request body harus berupa JSON object');
+  }
+
+  const { amount, note } = body;
   const errors = [];
   const amountError = validateAmount(amount);
   if (amountError) errors.push({ field: 'amount', message: amountError });
@@ -40,7 +45,13 @@ export async function topUp(userId, { amount, note } = {}) {
   });
 }
 
-export async function transfer(senderId, { recipient, amount, note } = {}) {
+export async function transfer(senderId, body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw new AppError(400, 'Request body harus berupa JSON object');
+  }
+
+  const { recipient, amount, note } = body;
+
   // 1. Validasi input
   const errors = [];
   if (typeof recipient !== 'string' || !recipient.trim())
@@ -52,7 +63,7 @@ export async function transfer(senderId, { recipient, amount, note } = {}) {
   if (errors.length) throw validationError(errors);
 
   // 2. Cari penerima berdasarkan email / nomor telepon
-  const target = recipient.trim().toLowerCase();
+  const target = typeof recipient === 'string' ? recipient.trim().toLowerCase() : '';
   const [found] = await pool.query(
     'SELECT id, username FROM users WHERE email = ? OR phone = ?',
     [target, target]
@@ -101,7 +112,11 @@ export async function getHistory(userId, { page, limit } = {}) {
     `SELECT t.reference_code, t.type, t.amount, t.note, t.created_at,
             CASE WHEN t.receiver_id = ? THEN 'IN' ELSE 'OUT' END AS direction,
             CASE WHEN t.receiver_id = ? THEN t.receiver_balance_after ELSE t.sender_balance_after END AS balance_after,
-            CASE WHEN t.receiver_id = ? THEN s.username ELSE r.username END AS counterparty
+            CASE 
+              WHEN t.type = 'TOPUP' THEN 'Top Up'
+              WHEN t.receiver_id = ? THEN s.username 
+              ELSE r.username 
+            END AS counterparty
      FROM transactions t
      LEFT JOIN users s ON s.id = t.sender_id
      JOIN users r ON r.id = t.receiver_id
