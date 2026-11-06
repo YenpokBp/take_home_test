@@ -14,6 +14,14 @@ export function errorHandler(err, req, res, next) {
     });
   }
 
+  // Duplicate key dari database (ER_DUP_ENTRY)
+  if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
+    return res.status(409).json({
+      success: false,
+      message: 'Data sudah digunakan',
+    });
+  }
+
   console.error(err); // error tak terduga: jangan bocorkan detail ke client
   res.status(500).json({ success: false, message: 'Terjadi kesalahan pada server' });
 }
