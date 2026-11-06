@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import client from '../api/client';
 import TopUpForm from '../components/TopUpForm';
 import TransferForm from '../components/TransferForm';
@@ -16,6 +16,11 @@ const TABS = [
   { key: 'transfer', label: 'Transfer' },
   { key: 'history', label: 'Riwayat' },
 ];
+
+async function getBalance() {
+  const res = await client.get('/wallet/balance');
+  return res.data.data.balance;
+}
 
 function BalanceCard({ balance, loading }) {
   return (
@@ -36,8 +41,7 @@ export default function DashboardPage() {
 
   const fetchBalance = useCallback(async () => {
     try {
-      const res = await client.get('/wallet/balance');
-      setBalance(res.data.data.balance);
+      setBalance(await getBalance());
     } catch (err) {
       console.error('Gagal memuat saldo:', err);
     } finally {
@@ -46,8 +50,23 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    fetchBalance();
-  }, [fetchBalance]);
+    let cancelled = false;
+
+    getBalance()
+      .then((nextBalance) => {
+        if (!cancelled) setBalance(nextBalance);
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('Gagal memuat saldo:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setBalanceLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
